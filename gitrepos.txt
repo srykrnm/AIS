@@ -1,0 +1,6 @@
+https://codeberg.org/srykrnm/Wallpapers|Wallpapers
+https://codeberg.org/srykrnm/Books|Books
+https://codeberg.org/srykrnm/.dotfiles|Dotfiles
+https://codeberg.org/srykrnm/dm-scripts|Dmenu-scripts
+https://codeberg.org/srykrnm/suckless-builds|Suckless-builds
+

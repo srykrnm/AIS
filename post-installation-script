@@ -1,0 +1,219 @@
+#!/bin/bash
+
+###----------------------------------------------------------
+### VARIABLES ###
+
+GREEN="$(tput setaf 2)"
+RESET="$(tput sgr0)"
+BLUE="$(tput setf 1)"
+CYAN="$(tput setf 3)" 
+RED="$(tput setf 4)" 
+user=`whoami`
+
+### ARTWORK ###
+
+
+
+###---------------------------------------------------------
+### FUNCTIONS ###
+
+### SEPERATOR  ##
+
+sep() {
+	echo -e "\n${CYAN}|--------------------------------------------------------------------------------------------------------------------------------------------------------------|${RESET}\n"
+
+}
+
+#[[## INSTALLING PACKAGES (PACMAN,AUR) ##]]#
+
+install_packages_dir() {
+	echo -e "${GREEN}\nDownloading and Installing packages (with pacman)\n-------------------------------------------------${RESET}\n"
+	while read line;
+	do
+		if [ "${line:0:1}" == # ]; then
+			if [ "${line:0:3}" == ### ]; then
+				echo -e "\n${GREEN}[Installing $line]${RESET}\n"
+			fi
+		else
+			if [ "${#line}" != 0 ]; then
+				sudo pacman -S "$line" --noconfirm
+			fi
+		fi
+
+	done < base.txt
+	echo ""
+}
+
+
+install_packages_aur() {
+	echo -e "${GREEN}Downloading and Installing packages (from aur)\n--------------------------------------------${RESET}"
+	while read line;
+	do
+		if [ "${line:0:1}" == # ]; then
+			if [ "${line:0:3}" == ### ]; then
+				echo -e "\n${GREEN}[Installing $line]${RESET}\n"
+			fi
+		else
+			if [ "${#line}" != 0 ]; then
+				cd ~/
+				git clone https://aur.archlinux.org/"$line"
+				cd ~/$line
+				makepkg -si
+				cd ~/
+				sudo rm ~/$line -r
+
+			fi
+		fi
+
+	done < aur.txt
+}
+
+#[[## DOWNLOADING GITREPOS AND SETTING DOTFILES ##]]#
+
+gitrepos_download() {
+	echo -e "$\n{GREEN}Downloading Git repos\n----------------------${RESET}\n"
+	cd ~/
+	while read line;
+	do
+		if [ "${line:0:1}" == # ]; then
+			if [ "${line:0:3}" == ### ]; then
+				echo -e "\n${GREEN}[Installing $line]${RESET}\n"
+			fi
+		else
+			if [ "${#line}" != 0 ]; then
+				cd ~/
+				repo=`echo $line | cut -d '|' -f1`
+				heading=`echo $line | cut -d '|' -f2`
+				echo "\n${GREEN}Cloning $line ...${RESET}\n"
+				git clone "$repo"
+			fi
+		fi
+	done < gitrepos.txt
+}
+
+install_dotfiles() {
+	echo -e "\n${GREEN}Installing .dotfiles\n--------------------${RESET}\n"
+	cd ~/
+	ls -Al ~/.dotfiles | awk '{print $9}' | while read line;
+	do
+		if [ "$line" != .config ] || [ "$line" != .git ]; then
+			ln -s ~/.dotfiles/"$line" ~/"$line"
+		fi
+	done
+	ls -Al ~/.dotfiles/.config | awk '{print $9}' | while read line;
+	do
+		ln -s ~/.dotfiles/"$line" ~/"$line"
+	done
+}
+
+#[[## INIT ##]]#
+
+logo() {
+	clear
+	echo -e "\n\n${CYAN}POST-INSTALLATON-SCRIPT\n-----------------------${RESET}\n\n"
+}
+
+is_root() {
+	if [ "$user" == "root" ]; then
+		echo "${RED}ERROR : Do not RUN as ROOT!${RESET}"
+		sep
+		exit 1
+	fi
+}
+
+start_qn() {
+	read -p "Hello $user\nStart installer ? : " yes_no
+	if [ "$yes_no" != y ]; then
+		echo "${RED}ERROR : Your input caused the installer to stop.${RESET}"
+		sep
+		exit 1
+	fi
+}
+
+req_filenfolders() {
+	if [ ! -d "$HOME/.config" ]; then
+		mkdir $HOME/.config
+	fi
+	if [ ! -f ./"$base" ] || [ ! -f ./"$gitrepos" ] || [ ! -f ./"$aur" ];  then
+		echo "${RED}ERROR : Required file [base,aur,gitrepos] not found.${RESET}"
+		sep
+		exit 1
+	fi
+}
+
+init() {
+	logo
+	is_root
+	start_qn
+	req_filesnfolders
+}
+
+#[[## reboot ##]]#
+
+rebooot() {
+	echo -e "\n${GREEN}The Installation was succesfull.\n Going for a reboot in 5 sec.${RESET}\n"
+	sep
+	sleep 5
+	sudo reboot
+}
+
+#[[## HOME ##]]#
+
+mkdir_home() {
+	cd ~/
+	mkdir Documents Pictures Files Music Videos Downloads
+	mkdir ~/Pictures/Screenshots
+}
+
+
+setup_folders() {
+	sep
+	cd ~/
+	mv ~/Wallpapers Pictures/
+	mv ~/dm-scripts/ Files/
+	mv ~/suckless-builds/ Files/
+	mv ~/post-installation-script/ Files/
+	mv ~/Books Files/
+}
+
+setup_homefolder() {
+	mkdir_home
+	setup_folders
+}
+
+#[[## EXTRA SETUP ##]]#
+
+warp() {
+	sudo systemctl enable warp-svc --now
+	warp-cli register
+	warp-cli connect
+	warp-cli set-families-mode full
+
+}
+
+extra_setup() {
+	echo -e "\n${BLUE}RUNNING ADDITIONAL SETUP\n ------------------------${RESET}\n"
+	warp
+}
+
+###----------------------------------------------------------
+### MAIN-FUNCTION ###
+
+main() {
+	init
+	install_packages_dir
+	install_packages_aur
+	gitrepos_download
+	install_dotfiles
+	set_homefolder
+	extra_setup
+	rebooot
+}
+
+###----------------------------------------------------------
+### EXECUTION ###
+
+main
+
+###----------------------------------------------------------
+### END ###
