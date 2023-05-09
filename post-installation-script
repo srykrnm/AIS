@@ -9,6 +9,10 @@ BLUE="$(tput setf 1)"
 CYAN="$(tput setf 3)" 
 RED="$(tput setf 4)" 
 user=`whoami`
+execdir=$HOME/PIS
+base="base.txt"
+aur="aur.txt"
+gitrepos="gitrepos.txt"
 
 ### ARTWORK ###
 
@@ -20,7 +24,7 @@ user=`whoami`
 ### SEPERATOR  ##
 
 sep() {
-	echo -e "\n${CYAN}|--------------------------------------------------------------------------------------------------------------------------------------------------------------|${RESET}\n"
+	echo -e "\n${CYAN}--------------------------------------------------------------------------------------------------------------------------------------------------------------${RESET}\n"
 
 }
 
@@ -30,8 +34,8 @@ install_packages_dir() {
 	echo -e "${GREEN}\nDownloading and Installing packages (with pacman)\n-------------------------------------------------${RESET}\n"
 	while read line;
 	do
-		if [ "${line:0:1}" == # ]; then
-			if [ "${line:0:3}" == ### ]; then
+		if [ "${line:0:1}" == "#" ]; then
+			if [ "${line:0:3}" == "###" ]; then
 				echo -e "\n${GREEN}[Installing $line]${RESET}\n"
 			fi
 		else
@@ -40,8 +44,7 @@ install_packages_dir() {
 			fi
 		fi
 
-	done < base.txt
-	echo ""
+	done < $execdir/$base
 }
 
 
@@ -49,8 +52,8 @@ install_packages_aur() {
 	echo -e "${GREEN}Downloading and Installing packages (from aur)\n--------------------------------------------${RESET}"
 	while read line;
 	do
-		if [ "${line:0:1}" == # ]; then
-			if [ "${line:0:3}" == ### ]; then
+		if [ "${line:0:1}" == "#" ]; then
+			if [ "${line:0:3}" == "###" ]; then
 				echo -e "\n${GREEN}[Installing $line]${RESET}\n"
 			fi
 		else
@@ -65,7 +68,7 @@ install_packages_aur() {
 			fi
 		fi
 
-	done < aur.txt
+	done < $execdir/$aur
 }
 
 #[[## DOWNLOADING GITREPOS AND SETTING DOTFILES ##]]#
@@ -75,8 +78,8 @@ gitrepos_download() {
 	cd ~/
 	while read line;
 	do
-		if [ "${line:0:1}" == # ]; then
-			if [ "${line:0:3}" == ### ]; then
+		if [ "${line:0:1}" == "#" ]; then
+			if [ "${line:0:3}" == "###" ]; then
 				echo -e "\n${GREEN}[Installing $line]${RESET}\n"
 			fi
 		else
@@ -88,11 +91,12 @@ gitrepos_download() {
 				git clone "$repo"
 			fi
 		fi
-	done < gitrepos.txt
+	done < $execdir/$gitrepos
 }
 
 install_dotfiles() {
 	echo -e "\n${GREEN}Installing .dotfiles\n--------------------${RESET}\n"
+	rm ~/.bashrc ~/.bash_profile
 	cd ~/
 	ls -Al ~/.dotfiles | awk '{print $9}' | while read line;
 	do
@@ -109,22 +113,22 @@ install_dotfiles() {
 #[[## INIT ##]]#
 
 logo() {
-	clear
-	echo -e "\n\n${CYAN}POST-INSTALLATON-SCRIPT\n-----------------------${RESET}\n\n"
+	echo -e "\n${CYAN}POST-INSTALLATON-SCRIPT\n-----------------------${RESET}\n"
 }
 
 is_root() {
 	if [ "$user" == "root" ]; then
-		echo "${RED}ERROR : Do not RUN as ROOT!${RESET}"
+		echo -e "${RED}\nERROR : Do not RUN as ROOT!. stopping script.\n${RESET}"
 		sep
 		exit 1
 	fi
 }
 
 start_qn() {
-	read -p "Hello $user\nStart installer ? : " yes_no
-	if [ "$yes_no" != y ]; then
-		echo "${RED}ERROR : Your input caused the installer to stop.${RESET}"
+	echo "Hey $USER",
+	read -p "Start installer ? (y/n) : " yes_no
+	if [ "$yes_no" != y ] && [ "$yes_no" != Y ]; then
+		echo -e "${RED}\nERROR : Your input caused the installer to stop.${RESET}\n"
 		sep
 		exit 1
 	fi
@@ -134,10 +138,12 @@ req_filenfolders() {
 	if [ ! -d "$HOME/.config" ]; then
 		mkdir $HOME/.config
 	fi
-	if [ ! -f ./"$base" ] || [ ! -f ./"$gitrepos" ] || [ ! -f ./"$aur" ];  then
-		echo "${RED}ERROR : Required file [base,aur,gitrepos] not found.${RESET}"
+	if [ -f "$execdir/$base.txt" ] || [ -f "$execdir/$gitrepos.txt" ] || [ -f "$execdir/$aur.txt" ];  then
+		echo -e "${RED}\nERROR : Required file/files [base,aur,gitrepos] not found. Stopping script.\n${RESET}"
 		sep
 		exit 1
+	else
+		echo -e "${GREEN}\nRequired files [base,aur,gitrepos] satisfied.\n${RESET}"
 	fi
 }
 
@@ -145,7 +151,7 @@ init() {
 	logo
 	is_root
 	start_qn
-	req_filesnfolders
+	req_filenfolders 
 }
 
 #[[## reboot ##]]#
@@ -157,33 +163,21 @@ rebooot() {
 	sudo reboot
 }
 
-#[[## HOME ##]]#
+#[[## EXTRA SETUP ##]]#
 
-mkdir_home() {
+setup_home() {
 	cd ~/
 	mkdir Documents Pictures Files Music Videos Downloads
 	mkdir ~/Pictures/Screenshots
-}
-
-
-setup_folders() {
-	sep
 	cd ~/
 	mv ~/Wallpapers Pictures/
 	mv ~/dm-scripts/ Files/
 	mv ~/suckless-builds/ Files/
-	mv ~/post-installation-script/ Files/
 	mv ~/Books Files/
+	mv ~/PIS/ Files/
 }
 
-setup_homefolder() {
-	mkdir_home
-	setup_folders
-}
-
-#[[## EXTRA SETUP ##]]#
-
-warp() {
+warp_setup() {
 	sudo systemctl enable warp-svc --now
 	warp-cli register
 	warp-cli connect
@@ -191,22 +185,41 @@ warp() {
 
 }
 
+build_suckless(){
+	cd ~/Files/Suckless
+	ls -l | awk '${print $9}' | while read line;
+	do
+		cd $line
+		sudo make clean install
+		cd ..
+	done
+}
+
 extra_setup() {
 	echo -e "\n${BLUE}RUNNING ADDITIONAL SETUP\n ------------------------${RESET}\n"
-	warp
+	setup_home
+	warp_setup
+	build_suckless
 }
 
 ###----------------------------------------------------------
 ### MAIN-FUNCTION ###
 
 main() {
-	init
+	clear
+	sep
+	init 
+	sep
 	install_packages_dir
+	sep
 	install_packages_aur
+	sep
 	gitrepos_download
+	sep
 	install_dotfiles
-	set_homefolder
+	sep
 	extra_setup
+	sep
 	rebooot
 }
 
