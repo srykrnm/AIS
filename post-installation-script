@@ -14,10 +14,6 @@ base="base.txt"
 aur="aur.txt"
 gitrepos="gitrepos.txt"
 
-### ARTWORK ###
-
-
-
 ###---------------------------------------------------------
 ### FUNCTIONS ###
 
@@ -58,13 +54,11 @@ install_packages_aur() {
 			fi
 		else
 			if [ "${#line}" != 0 ]; then
-				cd ~/
-				git clone https://aur.archlinux.org/"$line"
-				cd ~/$line
-				makepkg -si
-				cd ~/
-				sudo rm ~/$line -r
-
+				cd $HOME
+				git clone https://aur.archlinux.org/"$line".git
+				cd $HOME/$line
+				makepkg -si --noconfirm
+                rm $HOME/$line -rf
 			fi
 		fi
 
@@ -74,7 +68,7 @@ install_packages_aur() {
 #[[## DOWNLOADING GITREPOS AND SETTING DOTFILES ##]]#
 
 gitrepos_download() {
-	echo -e "$\n{GREEN}Downloading Git repos\n----------------------${RESET}\n"
+	echo -e "$\n${GREEN}Downloading Git repos\n----------------------${RESET}\n"
 	cd ~/
 	while read line;
 	do
@@ -87,7 +81,7 @@ gitrepos_download() {
 				cd ~/
 				repo=`echo $line | cut -d '|' -f1`
 				heading=`echo $line | cut -d '|' -f2`
-				echo "\n${GREEN}Cloning $line ...${RESET}\n"
+				echo -e "\n${GREEN}Cloning $heading ...${RESET}\n"
 				git clone "$repo"
 			fi
 		fi
@@ -96,17 +90,17 @@ gitrepos_download() {
 
 install_dotfiles() {
 	echo -e "\n${GREEN}Installing .dotfiles\n--------------------${RESET}\n"
-	rm ~/.bashrc ~/.bash_profile
-	cd ~/
+	rm $HOME/.bashrc $HOME/.bash_profile
+	cd $HOME
 	ls -Al ~/.dotfiles | awk '{print $9}' | while read line;
 	do
 		if [ "$line" != .config ] || [ "$line" != .git ]; then
-			ln -s ~/.dotfiles/"$line" ~/"$line"
+			ln -s $HOME/.dotfiles/"$line" $HOME/"$line"
 		fi
 	done
-	ls -Al ~/.dotfiles/.config | awk '{print $9}' | while read line;
+	ls -Al $HOME/.dotfiles/.config | awk '{print $9}' | while read line;
 	do
-		ln -s ~/.dotfiles/"$line" ~/"$line"
+		ln -s $HOME/.dotfiles/.config/"$line" $HOME/.config/"$line"
 	done
 }
 
@@ -157,49 +151,45 @@ init() {
 #[[## reboot ##]]#
 
 rebooot() {
-	echo -e "\n${GREEN}The Installation was succesfull.\n Going for a reboot in 5 sec.${RESET}\n"
+	echo -e "\n${GREEN}The Installation was succesfull.\nGoing for a reboot in 5 sec.${RESET}\n"
 	sep
-	sleep 5
+	sleep 20
 	sudo reboot
 }
 
 #[[## EXTRA SETUP ##]]#
 
 setup_home() {
-	cd ~/
+	cd $HOME
 	mkdir Documents Pictures Files Music Videos Downloads
-	mkdir ~/Pictures/Screenshots
-	cd ~/
-	mv ~/Wallpapers Pictures/
-	mv ~/dm-scripts/ Files/
-	mv ~/suckless-builds/ Files/
-	mv ~/Books Files/
-	mv ~/PIS/ Files/
+	mkdir $HOME/Pictures/Screenshots
+	mv $HOME/Wallpapers $HOME/Pictures/
+	mv $HOME/Suckless-builds/ $HOME/Files/
+	mv $HOME/Books $HOME/Files/
+	mv $HOME/PIS/ $HOME/Files/
 }
 
 warp_setup() {
-	sudo systemctl enable warp-svc --now
+	sudo systemctl enable warp-svc.service --now
 	warp-cli register
 	warp-cli connect
 	warp-cli set-families-mode full
-
 }
 
 build_suckless(){
-	cd ~/Files/Suckless
-	ls -l | awk '${print $9}' | while read line;
+	ls -l $HOME/Files/Suckless-builds | awk '${print $9}' | while read line;
 	do
-		cd $line
+		cd $HOME/Files/Suckless-builds/$line
 		sudo make clean install
-		cd ..
+        cd $HOME/Files/Suckless-builds
 	done
 }
 
 extra_setup() {
-	echo -e "\n${BLUE}RUNNING ADDITIONAL SETUP\n ------------------------${RESET}\n"
+	echo -e "\n${BLUE}RUNNING ADDITIONAL SETUP\n------------------------${RESET}\n"
 	setup_home
-	warp_setup
 	build_suckless
+	warp_setup
 }
 
 ###----------------------------------------------------------

@@ -7,7 +7,7 @@ brave-bin
 ### ADDITIONAL-STUFF ###
 
 #transset-df
-#spectrwm
+spectrwm
 #leftwm
 #bspwm-git
 #sxhkd-git

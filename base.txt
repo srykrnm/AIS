@@ -6,7 +6,6 @@ xorg-xinit
 xmonad
 xmonad-contrib
 base-devel
-nitrogen
 picom
 lxappearance
 materia-gtk-theme
@@ -25,15 +24,17 @@ wget
 curl
 dunst
 htop
+libnotify
 feh
 scrot
 imagemagick
-starship
-font-manager
 audacious
+neofetch
 vlc
 playerctl
 wmctrl
+exa
+bat
 
 ### fonts ###
 
@@ -50,17 +51,26 @@ ttf-fantasque-sans-mono
 noto-fonts-cjk
 noto-fonts-emoji
 noto-fonts-extra
+awesome-terminal-fonts
+powerline-fonts
+powerline-common
 
 ### ADDITIONAL-STUFF ###
 
 #xdotool
 #fzf
 #ranger
-#xterm
 #nano
 #xmobar
 #rofi
-neofetch
 #neovim
-cmatrix
+#cmatrix
 #rustup
+#nitrogen
+#lolcat
+#cowfortune
+#cowsay
+#starship
+#font-manager
+#xterm
+#alacritty
