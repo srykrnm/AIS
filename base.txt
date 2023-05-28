@@ -6,8 +6,11 @@ xorg-xinit
 xmonad
 xmonad-contrib
 base-devel
+python
+python-pip
 picom
 lxappearance
+nitrogen
 materia-gtk-theme
 pulseaudio
 pamixer
@@ -15,11 +18,13 @@ pavucontrol
 vim
 zathura
 zathura-pdf-mupdf
+acpi
 flameshot
-light
+unzip
 brightnessctl
 xautolock
 i3lock
+polybar
 wget
 curl
 dunst
@@ -35,6 +40,9 @@ playerctl
 wmctrl
 exa
 bat
+font-manager
+xdotool
+fzf
 
 ### fonts ###
 
@@ -57,8 +65,6 @@ powerline-common
 
 ### ADDITIONAL-STUFF ###
 
-#xdotool
-#fzf
 #ranger
 #nano
 #xmobar
@@ -66,11 +72,9 @@ powerline-common
 #neovim
 #cmatrix
 #rustup
-#nitrogen
 #lolcat
 #cowfortune
 #cowsay
 #starship
-#font-manager
 #xterm
 #alacritty

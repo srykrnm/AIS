@@ -20,8 +20,9 @@ gitrepos="gitrepos.txt"
 ### SEPERATOR  ##
 
 sep() {
-	echo -e "\n${CYAN}--------------------------------------------------------------------------------------------------------------------------------------------------------------${RESET}\n"
-
+    echo -e "\n"
+    for i in $( seq 1 $COLUMNS ); do echo -n "$1"; done
+    echo -e "\n"
 }
 
 #[[## INSTALLING PACKAGES (PACMAN,AUR) ##]]#
@@ -39,7 +40,6 @@ install_packages_dir() {
 				sudo pacman -S "$line" --noconfirm
 			fi
 		fi
-
 	done < $execdir/$base
 }
 
@@ -68,8 +68,8 @@ install_packages_aur() {
 #[[## DOWNLOADING GITREPOS AND SETTING DOTFILES ##]]#
 
 gitrepos_download() {
-	echo -e "$\n${GREEN}Downloading Git repos\n----------------------${RESET}\n"
-	cd ~/
+	echo -e "\n${GREEN}Downloading Git repos\n----------------------${RESET}\n"
+	cd $HOME
 	while read line;
 	do
 		if [ "${line:0:1}" == "#" ]; then
@@ -90,18 +90,17 @@ gitrepos_download() {
 
 install_dotfiles() {
 	echo -e "\n${GREEN}Installing .dotfiles\n--------------------${RESET}\n"
-	rm $HOME/.bashrc $HOME/.bash_profile
-	cd $HOME
-	ls -Al ~/.dotfiles | awk '{print $9}' | while read line;
+    if [ -f $HOME/.bashrc ]; then rm $HOME/.bashrc; fi 
+    if [ -f $HOME/.bash_profile ]; then rm $HOME/.bash_profile; fi 
+	ls -Al $HOME/.dotfiles | awk '{print $9}' | while read line;
 	do
-		if [ "$line" != .config ] || [ "$line" != .git ]; then
-			ln -s $HOME/.dotfiles/"$line" $HOME/"$line"
-		fi
+		if [ "$line" != .config ] && [ "$line" != .git ] && [ ${#line} != 0 ]; then ln -s $HOME/.dotfiles/"$line" $HOME/"$line"; fi
 	done
 	ls -Al $HOME/.dotfiles/.config | awk '{print $9}' | while read line;
 	do
-		ln -s $HOME/.dotfiles/.config/"$line" $HOME/.config/"$line"
+        if [ ${#line} != 0 ]; then ln -s $HOME/.dotfiles/.config/"$line" $HOME/.config/"$line"; fi
 	done
+	echo -e "${GREEN}Dotfiles installed${RESET}\n"
 }
 
 #[[## INIT ##]]#
@@ -113,7 +112,7 @@ logo() {
 is_root() {
 	if [ "$user" == "root" ]; then
 		echo -e "${RED}\nERROR : Do not RUN as ROOT!. stopping script.\n${RESET}"
-		sep
+		sep "="
 		exit 1
 	fi
 }
@@ -123,7 +122,7 @@ start_qn() {
 	read -p "Start installer ? (y/n) : " yes_no
 	if [ "$yes_no" != y ] && [ "$yes_no" != Y ]; then
 		echo -e "${RED}\nERROR : Your input caused the installer to stop.${RESET}\n"
-		sep
+		sep "="
 		exit 1
 	fi
 }
@@ -134,7 +133,7 @@ req_filenfolders() {
 	fi
 	if [ -f "$execdir/$base.txt" ] || [ -f "$execdir/$gitrepos.txt" ] || [ -f "$execdir/$aur.txt" ];  then
 		echo -e "${RED}\nERROR : Required file/files [base,aur,gitrepos] not found. Stopping script.\n${RESET}"
-		sep
+		sep "="
 		exit 1
 	else
 		echo -e "${GREEN}\nRequired files [base,aur,gitrepos] satisfied.\n${RESET}"
@@ -151,15 +150,19 @@ init() {
 #[[## reboot ##]]#
 
 rebooot() {
-	echo -e "\n${GREEN}The Installation was succesfull.\nGoing for a reboot in 5 sec.${RESET}\n"
-	sep
-	sleep 20
+    echo -e "\n${GREEN}The Installation was succesfull.\nGoing for a reboot in 10 sec (CTRL-C to cancel).${RESET}\n"
+    for i in $( seq 10 -1 0 ); do 
+        echo -ne "\rThe system will reboot in $i seconds ..."
+        sleep 1
+    done
+    sep "="
 	sudo reboot
 }
 
 #[[## EXTRA SETUP ##]]#
 
 setup_home() {
+	echo -e "${GREEN}Setting HOME ...${RESET}\n"
 	cd $HOME
 	mkdir Documents Pictures Files Music Videos Downloads
 	mkdir $HOME/Pictures/Screenshots
@@ -170,14 +173,17 @@ setup_home() {
 }
 
 warp_setup() {
-	sudo systemctl enable warp-svc.service --now
+	echo -e "${GREEN}Setting WARP ...${RESET}\n"
+	sudo systemctl enable warp-svc.service
+	sudo systemctl start warp-svc
 	warp-cli register
 	warp-cli connect
 	warp-cli set-families-mode full
 }
 
 build_suckless(){
-	ls -l $HOME/Files/Suckless-builds | awk '${print $9}' | while read line;
+	echo -e "${GREEN}Building Suckless ...${RESET}\n"
+	ls -l $HOME/Files/Suckless-builds | awk '{print $9}' | while read line;
 	do
 		cd $HOME/Files/Suckless-builds/$line
 		sudo make clean install
@@ -186,10 +192,11 @@ build_suckless(){
 }
 
 extra_setup() {
-	echo -e "\n${BLUE}RUNNING ADDITIONAL SETUP\n------------------------${RESET}\n"
+	echo -e "\n${GREEN}RUNNING ADDITIONAL SETUP\n------------------------${RESET}\n"
 	setup_home
 	build_suckless
 	warp_setup
+	echo -e "\n${GREEN}ADDITIONAL SETUP DONE.${RESET}\n"
 }
 
 ###----------------------------------------------------------
@@ -197,19 +204,19 @@ extra_setup() {
 
 main() {
 	clear
-	sep
+	sep "="
 	init 
-	sep
+	sep "-"
 	install_packages_dir
-	sep
+	sep "-"
 	install_packages_aur
-	sep
+	sep "-"
 	gitrepos_download
-	sep
+	sep "-"
 	install_dotfiles
-	sep
+	sep "-"
 	extra_setup
-	sep
+	sep "-"
 	rebooot
 }
 
