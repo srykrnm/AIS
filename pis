@@ -28,69 +28,55 @@ sep() {
 #[[## INSTALLING PACKAGES (PACMAN,AUR) ##]]#
 
 install_packages_dir() {
-	echo -e "${GREEN}\nDownloading and Installing packages (with pacman)\n-------------------------------------------------${RESET}\n"
+    echo ""
+    echo -ne "\r[ ] Installing packages using pacman ..." 
+    sudo pacman -Syyu --noconfirm &>/dev/null
 	while read line;
 	do
-		if [ "${line:0:1}" == "#" ]; then
-			if [ "${line:0:3}" == "###" ]; then
-				echo -e "\n${GREEN}[Installing $line]${RESET}\n"
-			fi
-		else
-			if [ "${#line}" != 0 ]; then
-				sudo pacman -S "$line" --noconfirm
-			fi
+		if [ "${line:0:1}" != "#" ] && [ "${#line}" != 0 ]; then
+            sudo pacman -S "$line" --noconfirm &>/dev/null
 		fi
 	done < $execdir/$base
+    echo -ne "\r[*] Installing packages using pacman [Done]" 
 }
 
 
 install_packages_aur() {
-	echo -e "${GREEN}Downloading and Installing packages (from aur)\n--------------------------------------------${RESET}"
+    echo ""
+    echo -ne "\r[ ] Installing packages from AUR ..." 
 	while read line;
 	do
-		if [ "${line:0:1}" == "#" ]; then
-			if [ "${line:0:3}" == "###" ]; then
-				echo -e "\n${GREEN}[Installing $line]${RESET}\n"
-			fi
-		else
-			if [ "${#line}" != 0 ]; then
-				cd $HOME
-				git clone https://aur.archlinux.org/"$line".git
-				cd $HOME/$line
-				makepkg -si --noconfirm
-                rm $HOME/$line -rf
-			fi
-		fi
-
+        if [ "${line:0:1}" != "#" ] && [ "${#line}" != 0 ]; then
+            cd $HOME 
+            git clone https://aur.archlinux.org/"$line".git &>/dev/null
+            cd $HOME/$line 
+            makepkg -si --noconfirm &>/dev/null
+            rm $HOME/$line -rf 
+        fi
 	done < $execdir/$aur
+    echo -ne "\r[*] Installing packages from AUR [Done]" 
 }
 
 #[[## DOWNLOADING GITREPOS AND SETTING DOTFILES ##]]#
 
 gitrepos_download() {
-	echo -e "\n${GREEN}Downloading Git repos\n----------------------${RESET}\n"
-	cd $HOME
+    echo ""
+    echo -ne "\r[ ] Downloading git Repos ..." 
 	while read line;
 	do
-		if [ "${line:0:1}" == "#" ]; then
-			if [ "${line:0:3}" == "###" ]; then
-				echo -e "\n${GREEN}[Installing $line]${RESET}\n"
-			fi
-		else
-			if [ "${#line}" != 0 ]; then
-				cd ~/
-				repo=`echo $line | cut -d '|' -f1`
-				heading=`echo $line | cut -d '|' -f2`
-				echo -e "\n${GREEN}Cloning $heading ...${RESET}\n"
-				git clone "$repo"
-			fi
-		fi
+        if [ "${line:0:1}" != "#" ] && [ "${#line}" != 0 ]; then
+            cd $HOME 
+            repo=`echo $line | cut -d '|' -f1`
+            git clone "$repo" &>/dev/null
+        fi
 	done < $execdir/$gitrepos
+    echo -ne "\r[*] Downloading git Repos [Done]"
 }
 
 install_dotfiles() {
-	echo -e "\n${GREEN}Installing .dotfiles\n--------------------${RESET}\n"
-    if [ -f $HOME/.bashrc ]; then rm $HOME/.bashrc; fi 
+    echo ""
+    echo -ne "\r[ ] Installing Dotfiles ..." 
+    if [ -f $HOME/.bashrc ]; then rm $HOME/.bashrc; fi
     if [ -f $HOME/.bash_profile ]; then rm $HOME/.bash_profile; fi 
 	ls -Al $HOME/.dotfiles | awk '{print $9}' | while read line;
 	do
@@ -100,7 +86,7 @@ install_dotfiles() {
 	do
         if [ ${#line} != 0 ]; then ln -s $HOME/.dotfiles/.config/"$line" $HOME/.config/"$line"; fi
 	done
-	echo -e "${GREEN}Dotfiles installed${RESET}\n"
+    echo -ne "\r[*] Installing Dotfiles [Done]"
 }
 
 #[[## INIT ##]]#
@@ -111,7 +97,7 @@ logo() {
 
 is_root() {
 	if [ "$user" == "root" ]; then
-		echo -e "${RED}\nERROR : Do not RUN as ROOT!. stopping script.\n${RESET}"
+		echo -e "${RED}\nERROR : Do not RUN as ROOT!. stopping script.${RESET}"
 		sep "="
 		exit 1
 	fi
@@ -121,7 +107,7 @@ start_qn() {
 	echo "Hey $USER",
 	read -p "Start installer ? (y/n) : " yes_no
 	if [ "$yes_no" != y ] && [ "$yes_no" != Y ]; then
-		echo -e "${RED}\nERROR : Your input caused the installer to stop.${RESET}\n"
+		echo -e "${RED}\nERROR : Your input caused the installer to stop.${RESET}"
 		sep "="
 		exit 1
 	fi
@@ -131,12 +117,12 @@ req_filenfolders() {
 	if [ ! -d "$HOME/.config" ]; then
 		mkdir $HOME/.config
 	fi
-	if [ -f "$execdir/$base.txt" ] || [ -f "$execdir/$gitrepos.txt" ] || [ -f "$execdir/$aur.txt" ];  then
-		echo -e "${RED}\nERROR : Required file/files [base,aur,gitrepos] not found. Stopping script.\n${RESET}"
+	if [ ! -f "$execdir/$base" ] || [ ! -f "$execdir/$gitrepos" ] || [ ! -f "$execdir/$aur" ];  then
+		echo -e "${RED}\nERROR : Required file/files [base,aur,gitrepos] not found. Stopping script.${RESET}"
 		sep "="
 		exit 1
 	else
-		echo -e "${GREEN}\nRequired files [base,aur,gitrepos] satisfied.\n${RESET}"
+		echo -e "${GREEN}\nRequired files [base,aur,gitrepos] satisfied.${RESET}"
 	fi
 }
 
@@ -162,7 +148,6 @@ rebooot() {
 #[[## EXTRA SETUP ##]]#
 
 setup_home() {
-	echo -e "${GREEN}Setting HOME ...${RESET}\n"
 	cd $HOME
 	mkdir Documents Pictures Files Music Videos Downloads
 	mkdir $HOME/Pictures/Screenshots
@@ -173,30 +158,29 @@ setup_home() {
 }
 
 warp_setup() {
-	echo -e "${GREEN}Setting WARP ...${RESET}\n"
-	sudo systemctl enable warp-svc.service
-	sudo systemctl start warp-svc
-	warp-cli register
-	warp-cli connect
-	warp-cli set-families-mode full
+	sudo systemctl enable warp-svc.service &> /dev/null
+	sudo systemctl start warp-svc &> /dev/null
+	warp-cli register &> /dev/null
+	warp-cli connect &> /dev/null
+	warp-cli set-families-mode full &> /dev/null
 }
 
 build_suckless(){
-	echo -e "${GREEN}Building Suckless ...${RESET}\n"
 	ls -l $HOME/Files/Suckless-builds | awk '{print $9}' | while read line;
 	do
 		cd $HOME/Files/Suckless-builds/$line
-		sudo make clean install
+		sudo make clean install &> /dev/null
         cd $HOME/Files/Suckless-builds
 	done
 }
 
 extra_setup() {
-	echo -e "\n${GREEN}RUNNING ADDITIONAL SETUP\n------------------------${RESET}\n"
+    echo ""
+    echo -ne "\r[ ] Additional Setup ..." 
 	setup_home
 	build_suckless
 	warp_setup
-	echo -e "\n${GREEN}ADDITIONAL SETUP DONE.${RESET}\n"
+    echo -ne "\r[*] Additional Setup [Done]" 
 }
 
 ###----------------------------------------------------------
@@ -207,7 +191,7 @@ main() {
 	sep "="
 	init 
 	sep "-"
-	install_packages_dir
+	install_packages_dir 
 	sep "-"
 	install_packages_aur
 	sep "-"

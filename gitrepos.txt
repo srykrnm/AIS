@@ -2,6 +2,5 @@ https://codeberg.org/srykrnm/Wallpapers|Wallpapers
 https://codeberg.org/srykrnm/Books|Books
 https://codeberg.org/srykrnm/.dotfiles|Dotfiles
 https://codeberg.org/srykrnm/Suckless-builds|Suckless-builds
-https://codeberg.org/srykrnm/Scripts|Shell-scripts
-https://codeberg.org/srykrnm/Icons|Icons
+https://codeberg.org/srykrnm/Menu-scripts|Shell-scripts
 
