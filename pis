@@ -9,7 +9,7 @@ BLUE="$(tput setf 1)"
 CYAN="$(tput setf 3)" 
 RED="$(tput setf 4)" 
 user=`whoami`
-execdir=$HOME/PIS
+execdir=$HOME/Files/PIS
 base="base.txt"
 aur="aur.txt"
 gitrepos="gitrepos.txt"
@@ -29,7 +29,7 @@ sep() {
 
 install_packages_dir() {
     echo ""
-    echo -ne "\r[ ] Installing packages using pacman ..." 
+    echo -ne "\r${RED}[ ]${RESET} Installing packages using pacman ..." 
     sudo pacman -Syyu --noconfirm &>/dev/null
 	while read line;
 	do
@@ -37,13 +37,13 @@ install_packages_dir() {
             sudo pacman -S "$line" --noconfirm &>/dev/null
 		fi
 	done < $execdir/$base
-    echo -ne "\r[*] Installing packages using pacman [Done]" 
+    echo -ne "\r${GREEN}[*]${RESET} Installing packages using pacman [Done]" 
 }
 
 
 install_packages_aur() {
     echo ""
-    echo -ne "\r[ ] Installing packages from AUR ..." 
+    echo -ne "\r${RED}[ ]${RESET} Installing packages from AUR ..." 
 	while read line;
 	do
         if [ "${line:0:1}" != "#" ] && [ "${#line}" != 0 ]; then
@@ -54,14 +54,14 @@ install_packages_aur() {
             rm $HOME/$line -rf 
         fi
 	done < $execdir/$aur
-    echo -ne "\r[*] Installing packages from AUR [Done]" 
+    echo -ne "\r${GREEN}[*]${RESET} Installing packages from AUR [Done]" 
 }
 
 #[[## DOWNLOADING GITREPOS AND SETTING DOTFILES ##]]#
 
 gitrepos_download() {
     echo ""
-    echo -ne "\r[ ] Downloading git Repos ..." 
+    echo -ne "\r${RED}[ ]${RESET} Downloading git Repos ..." 
 	while read line;
 	do
         if [ "${line:0:1}" != "#" ] && [ "${#line}" != 0 ]; then
@@ -70,12 +70,12 @@ gitrepos_download() {
             git clone "$repo" &>/dev/null
         fi
 	done < $execdir/$gitrepos
-    echo -ne "\r[*] Downloading git Repos [Done]"
+    echo -ne "\r${GREEN}[*]${RESET} Downloading git Repos [Done]"
 }
 
 install_dotfiles() {
     echo ""
-    echo -ne "\r[ ] Installing Dotfiles ..." 
+    echo -ne "\r${RED}[ ]${RESET} Installing Dotfiles ..." 
     if [ -f $HOME/.bashrc ]; then rm $HOME/.bashrc; fi
     if [ -f $HOME/.bash_profile ]; then rm $HOME/.bash_profile; fi 
 	ls -Al $HOME/.dotfiles | awk '{print $9}' | while read line;
@@ -86,7 +86,7 @@ install_dotfiles() {
 	do
         if [ ${#line} != 0 ]; then ln -s $HOME/.dotfiles/.config/"$line" $HOME/.config/"$line"; fi
 	done
-    echo -ne "\r[*] Installing Dotfiles [Done]"
+    echo -ne "\r${GREEN}[*]${RESET} Installing Dotfiles [Done]"
 }
 
 #[[## INIT ##]]#
@@ -127,6 +127,8 @@ req_filenfolders() {
 }
 
 init() {
+	clear
+	sep "="
 	logo
 	is_root
 	start_qn
@@ -136,12 +138,10 @@ init() {
 #[[## reboot ##]]#
 
 rebooot() {
-    echo -e "\n${GREEN}The Installation was succesfull.\nGoing for a reboot in 10 sec (CTRL-C to cancel).${RESET}\n"
-    for i in $( seq 10 -1 0 ); do 
-        echo -ne "\rThe system will reboot in $i seconds ..."
-        sleep 1
-    done
+    echo -e "\n\n${GREEN}The Installation was succesfull.\nGoing for a reboot in 10 sec (CTRL-C to cancel).${RESET}\n"
+    echo "The system will reboot in 10 seconds ..."
     sep "="
+    sleep 10
 	sudo reboot
 }
 
@@ -176,31 +176,23 @@ build_suckless(){
 
 extra_setup() {
     echo ""
-    echo -ne "\r[ ] Additional Setup ..." 
-	setup_home
+    echo -ne "\r${RED}[ ]${RESET} Additional Setup ..." 
+#	setup_home
 	build_suckless
-	warp_setup
-    echo -ne "\r[*] Additional Setup [Done]" 
+#	warp_setup
+    echo -ne "\r${GREEN}[*]${RESET} Additional Setup [Done]" 
 }
 
 ###----------------------------------------------------------
 ### MAIN-FUNCTION ###
 
 main() {
-	clear
-	sep "="
 	init 
-	sep "-"
-	install_packages_dir 
-	sep "-"
-	install_packages_aur
-	sep "-"
-	gitrepos_download
-	sep "-"
-	install_dotfiles
-	sep "-"
+#	install_packages_dir 
+#	install_packages_aur
+#	gitrepos_download
+#	install_dotfiles
 	extra_setup
-	sep "-"
 	rebooot
 }
 
