@@ -9,7 +9,7 @@ BLUE="$(tput setf 1)"
 CYAN="$(tput setf 3)" 
 RED="$(tput setf 4)" 
 user=`whoami`
-execdir=$HOME/Files/PIS
+execdir=$HOME/PIS
 base="base.txt"
 aur="aur.txt"
 gitrepos="gitrepos.txt"
@@ -30,14 +30,21 @@ sep() {
 install_packages_dir() {
     echo ""
     echo -ne "\r${RED}[ ]${RESET} Installing packages using pacman ..." 
-    sudo pacman -Syyu --noconfirm &>/dev/null
+    sudo pacman -Syyu --noconfirm >/dev/null 2>>/$execdir/errors.log
 	while read line;
 	do
 		if [ "${line:0:1}" != "#" ] && [ "${#line}" != 0 ]; then
-            sudo pacman -S "$line" --noconfirm &>/dev/null
+            sudo pacman -S "$line" --noconfirm >/dev/null 2>>/$execdir/errors.log
+            status=$(echo $?)
 		fi
 	done < $execdir/$base
-    echo -ne "\r${GREEN}[*]${RESET} Installing packages using pacman [Done]" 
+    if [ "$status" == 0 ]; then
+        echo -ne "\r${GREEN}[*]${RESET} Installing packages using pacman ${GREEN}[Done]$RESET{}"
+        echo "0" >> $execdir/exitstatus.txt
+    else
+        echo -ne "\r${RED}[*]${RESET} Installing packages using pacman ${RED}[Error]${RESET}" 
+        echo "1" >> $execdir/exitstatus.txt
+    fi
 }
 
 
@@ -48,13 +55,20 @@ install_packages_aur() {
 	do
         if [ "${line:0:1}" != "#" ] && [ "${#line}" != 0 ]; then
             cd $HOME 
-            git clone https://aur.archlinux.org/"$line".git &>/dev/null
-            cd $HOME/$line 
-            makepkg -si --noconfirm &>/dev/null
-            rm $HOME/$line -rf 
+            git clone https://aur.archlinux.org/"$line".git >/dev/null 2>>/$execdir/errors.log
+            cd $HOME/$line >/dev/null 2>>/$execdir/errors.log
+            makepkg -si --noconfirm >/dev/null 2>>/$execdir/errors.log
+            status=$(echo $?)
+            rm $HOME/$line -rf >/dev/null 2>>/$execdir/errors.log
         fi
 	done < $execdir/$aur
-    echo -ne "\r${GREEN}[*]${RESET} Installing packages from AUR [Done]" 
+    if [ "$status" == 0 ]; then
+        echo -ne "\r${GREEN}[*]${RESET} Installing packages from AUR ${GREEN}[Done]${RESET}"
+        echo "0" >> $execdir/exitstatus.txt
+    else
+        echo -ne "\r${RED}[*]${RESET} Installing packages from AUR ${RED}[Error]${RESET}" 
+        echo "1" >> $execdir/exitstatus.txt
+    fi
 }
 
 #[[## DOWNLOADING GITREPOS AND SETTING DOTFILES ##]]#
@@ -67,26 +81,47 @@ gitrepos_download() {
         if [ "${line:0:1}" != "#" ] && [ "${#line}" != 0 ]; then
             cd $HOME 
             repo=`echo $line | cut -d '|' -f1`
-            git clone "$repo" &>/dev/null
+            git clone "$repo" >/dev/null 2>>/$execdir/errors.log
+            status=$(echo $?)
         fi
 	done < $execdir/$gitrepos
-    echo -ne "\r${GREEN}[*]${RESET} Downloading git Repos [Done]"
+    if [ "$status" == 0 ]; then
+        echo -ne "\r${GREEN}[*]${RESET} Downloading git repos ${GREEN}[Done]${RESET}"
+        echo "0" >> $execdir/exitstatus.txt
+    else
+        echo -ne "\r${RED}[*]${RESET} Downloading git repos ${RED}[Error]${RESET}" 
+        echo "1" >> $execdir/exitstatus.txt
+    fi
 }
 
 install_dotfiles() {
     echo ""
     echo -ne "\r${RED}[ ]${RESET} Installing Dotfiles ..." 
-    if [ -f $HOME/.bashrc ]; then rm $HOME/.bashrc; fi
-    if [ -f $HOME/.bash_profile ]; then rm $HOME/.bash_profile; fi 
-	ls -Al $HOME/.dotfiles | awk '{print $9}' | while read line;
-	do
-		if [ "$line" != .config ] && [ "$line" != .git ] && [ ${#line} != 0 ]; then ln -s $HOME/.dotfiles/"$line" $HOME/"$line"; fi
-	done
-	ls -Al $HOME/.dotfiles/.config | awk '{print $9}' | while read line;
-	do
-        if [ ${#line} != 0 ]; then ln -s $HOME/.dotfiles/.config/"$line" $HOME/.config/"$line"; fi
-	done
-    echo -ne "\r${GREEN}[*]${RESET} Installing Dotfiles [Done]"
+    if [ -d $HOME/.dotfiles ]; then 
+        status=1
+    else
+        ls -Al $HOME/.dotfiles | awk '{print $9}' | while read line;
+        do
+            if [ "$line" != .config ] && [ "$line" != .git ] && [ ${#line} != 0 ] && [ ! -L "$HOME/$line" ]; then 
+                ln -s $HOME/.dotfiles/"$line" $HOME/"$line" >/dev/null 2>>/$execdir/errors.log 
+            fi
+            status=$(echo $?)
+        done
+        ls -Al $HOME/.dotfiles/.config | awk '{print $9}' | while read line;
+        do
+            if [ ${#line} != 0 ] && [ ! -L "$HOME/.config/$line" ]; then 
+                ln -s $HOME/.dotfiles/.config/"$line" $HOME/.config/"$line" >/dev/null 2>>/$execdir/errors.log
+            fi
+            status=$(echo $?)
+        done
+    fi
+    if [ "$status" == 0 ]; then
+        echo -ne "\r${GREEN}[*]${RESET} Installing Dotfiles ${GREEN}[Done]${RESET}"
+        echo "0" >> $execdir/exitstatus.txt
+    else
+        echo -ne "\r${RED}[*]${RESET} Installing Dotfiles ${RED}[Error]${RESET}" 
+        echo "1" >> $execdir/exitstatus.txt
+    fi
 }
 
 #[[## INIT ##]]#
@@ -103,26 +138,39 @@ is_root() {
 	fi
 }
 
+network() {
+    wget -q --spider http://google.com
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}\nNetwork OK.${RESET}"
+    else
+        echo -e "${RED}\nERROR : Network Unavailable. stopping script.${RESET}"
+        sep "="
+        exit 1
+    fi
+}
+
 start_qn() {
 	echo "Hey $USER",
-	read -p "Start installer ? (y/n) : " yes_no
-	if [ "$yes_no" != y ] && [ "$yes_no" != Y ]; then
+	read -p "Start installer ? (Y/n) : " yes_no
+	if [ "$yes_no" != y ] && [ "$yes_no" != Y ] && [ ${#yes_no} -ne 0 ]; then
 		echo -e "${RED}\nERROR : Your input caused the installer to stop.${RESET}"
 		sep "="
 		exit 1
 	fi
 }
 
-req_filenfolders() {
-	if [ ! -d "$HOME/.config" ]; then
-		mkdir $HOME/.config
-	fi
+filenfolders() {
+    if [ -f $HOME/.bashrc ]; then rm $HOME/.bashrc; fi
+    if [ -f $HOME/.bash_profile ]; then rm $HOME/.bash_profile; fi
+    if [ -f "$execdir/exitstatus.txt" ]; then rm $execdir/exitstatus.txt; fi
+    if [ -f "$execdir/errors.log" ]; then rm $execdir/errors.log; fi
+	if [ ! -d "$HOME/.config" ]; then mkdir $HOME/.config; fi
 	if [ ! -f "$execdir/$base" ] || [ ! -f "$execdir/$gitrepos" ] || [ ! -f "$execdir/$aur" ];  then
 		echo -e "${RED}\nERROR : Required file/files [base,aur,gitrepos] not found. Stopping script.${RESET}"
 		sep "="
 		exit 1
 	else
-		echo -e "${GREEN}\nRequired files [base,aur,gitrepos] satisfied.${RESET}"
+		echo -e "${GREEN}Required files [base,aur,gitrepos] OK.${RESET}"
 	fi
 }
 
@@ -130,46 +178,46 @@ init() {
 	clear
 	sep "="
 	logo
-	is_root
 	start_qn
-	req_filenfolders 
+    network
+	is_root
+	filenfolders 
 }
 
-#[[## reboot ##]]#
+#[[## conclusion ##]]#
 
-rebooot() {
-    echo -e "\n\n${GREEN}The Installation was succesfull.\nGoing for a reboot in 10 sec (CTRL-C to cancel).${RESET}\n"
-    echo "The system will reboot in 10 seconds ..."
-    sep "="
-    sleep 10
-	sudo reboot
+conclusion() {
+    status=`cat $execdir/exitstatus.txt | grep '1' | wc -l`
+    if [ "$status" == 0 ]; then
+        echo -e "\n\n${GREEN}The Installation was succesfull.\nGoing for a reboot in 10 sec (CTRL-C to cancel).${RESET}\n"
+        echo "The system will reboot in 10 seconds ..."
+        sep "="
+        sleep 10
+        sudo reboot
+   else
+        echo -e "\n\n${RED}The Installation was a FAILURE.\nOne or more errors occured during the Installation.${RESET}\n"
+        echo "Fix the problem and run again. (Check error.log for more details on occured errors)"
+        sep "="
+    fi
 }
 
 #[[## EXTRA SETUP ##]]#
 
 setup_home() {
 	cd $HOME
-	mkdir Documents Pictures Files Music Videos Downloads
-	mkdir $HOME/Pictures/Screenshots
-	mv $HOME/Wallpapers $HOME/Pictures/
-	mv $HOME/Suckless-builds/ $HOME/Files/
+	mkdir Documents Pictures Files Music Videos Downloads 
+	mkdir $HOME/Pictures/Screenshots 
+	mv $HOME/Wallpapers $HOME/Pictures/ 
+	mv $HOME/Suckless-builds/ $HOME/Files/ 
 	mv $HOME/Books $HOME/Files/
-	mv $HOME/PIS/ $HOME/Files/
-}
-
-warp_setup() {
-	sudo systemctl enable warp-svc.service &> /dev/null
-	sudo systemctl start warp-svc &> /dev/null
-	warp-cli register &> /dev/null
-	warp-cli connect &> /dev/null
-	warp-cli set-families-mode full &> /dev/null
+	mv $HOME/PIS/ $HOME/Files/ 
 }
 
 build_suckless(){
 	ls -l $HOME/Files/Suckless-builds | awk '{print $9}' | while read line;
 	do
 		cd $HOME/Files/Suckless-builds/$line
-		sudo make clean install &> /dev/null
+		sudo make clean install
         cd $HOME/Files/Suckless-builds
 	done
 }
@@ -177,10 +225,17 @@ build_suckless(){
 extra_setup() {
     echo ""
     echo -ne "\r${RED}[ ]${RESET} Additional Setup ..." 
-#	setup_home
-	build_suckless
-#	warp_setup
-    echo -ne "\r${GREEN}[*]${RESET} Additional Setup [Done]" 
+	setup_home >/dev/null 2>>/$execdir/errors.log
+    status_0=$(echo $?)
+	build_suckless >/dev/null 2>>/$execdir/errors.log
+    status_1=$(echo $?)
+    if [ "$status_0" == 0 ] && [ "$status_1" == 0 ]; then
+        echo -ne "\r${GREEN}[*]${RESET} Additional Setup ... ${GREEN}[Done]${RESET}"
+        echo "0" >> $execdir/exitstatus.txt
+    else
+        echo -ne "\r${RED}[*]${RESET} Additional Setup ${RED}[Error]${RESET}" 
+        echo "1" >> $execdir/exitstatus.txt
+    fi
 }
 
 ###----------------------------------------------------------
@@ -188,12 +243,12 @@ extra_setup() {
 
 main() {
 	init 
-#	install_packages_dir 
-#	install_packages_aur
-#	gitrepos_download
-#	install_dotfiles
+	install_packages_dir 
+	install_packages_aur
+	gitrepos_download
+	install_dotfiles
 	extra_setup
-	rebooot
+	conclusion
 }
 
 ###----------------------------------------------------------

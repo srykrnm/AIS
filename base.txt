@@ -5,6 +5,7 @@ xorg
 xorg-xinit
 xmonad
 xmonad-contrib
+alsa-utils
 base-devel
 python
 python-pip
@@ -14,7 +15,9 @@ nitrogen
 materia-gtk-theme
 pulseaudio
 pamixer
+pulseaudio-alsa
 pavucontrol
+arandr
 vim
 zathura
 zathura-pdf-mupdf
@@ -54,7 +57,7 @@ ttf-ubuntu-font-family
 terminus-font
 ttf-terminus-nerd
 noto-fonts
-ttf-losevka-nerd
+ttf-iosevka-nerd
 ttf-fantasque-sans-mono
 noto-fonts-cjk
 noto-fonts-emoji
