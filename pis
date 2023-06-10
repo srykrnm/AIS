@@ -3,19 +3,40 @@
 ###----------------------------------------------------------
 ### VARIABLES ###
 
-GREEN="$(tput setaf 2)"
-RESET="$(tput sgr0)"
-BLUE="$(tput setf 1)"
-CYAN="$(tput setf 3)" 
-RED="$(tput setf 4)" 
+RESET=$'\e[0m'
+RED=$'\e[31m'
+GREEN=$'\e[32m'
+BLUE=$'\e[34m'
+CYAN=$'\e[36m'
 user=`whoami`
 execdir=$HOME/PIS
-base="base.txt"
-aur="aur.txt"
-gitrepos="gitrepos.txt"
+config=$execdir/config.in
+
 
 ###---------------------------------------------------------
 ### FUNCTIONS ###
+
+### SOURCING-CONFIGS ###
+
+source_config() {
+    base=()
+    aur=()
+    gitrepos=()
+    homedir=()
+    while read line;
+    do
+        if [ "${line:0:1}" != "#" ] && [ "${#line}" != 0 ]; then
+            if [ "$line" == '[ PACMAN ]' ]; then array=base;
+            elif [ "$line" == '[ AUR ]' ]; then array=aur;
+            elif [ "$line" == '[ HOME-DIR ]' ]; then array=homedir;
+            elif [ "$line" == '[ GIT-REPOS ]' ]; then array=gitrepos; fi
+            if [ "$array" == 'base' ] && [ "$line" != '[ PACMAN ]' ]; then base+=( $line );
+            elif [ "$array" == 'aur' ] && [ "$line" != '[ AUR ]' ]; then aur+=( $line );
+            elif [ "$array" == 'homedir' ] && [ "$line" != '[ HOME-DIR ]' ]; then homedir+=( $line );
+            elif [ "$array" == 'gitrepos' ] && [ "$line" != '[ GIT-REPOS ]' ]; then gitrepose+=( $line ); fi
+        fi
+    done < $config
+}
 
 ### SEPERATOR  ##
 
@@ -27,17 +48,15 @@ sep() {
 
 #[[## INSTALLING PACKAGES (PACMAN,AUR) ##]]#
 
-install_packages_dir() {
+pacman_install() {
     echo ""
     echo -ne "\r${RED}[ ]${RESET} Installing packages using pacman ..." 
     sudo pacman -Syyu --noconfirm >/dev/null 2>>/$execdir/errors.log
-	while read line;
+	for line in "${base[@]}";
 	do
-		if [ "${line:0:1}" != "#" ] && [ "${#line}" != 0 ]; then
-            sudo pacman -S "$line" --noconfirm >/dev/null 2>>/$execdir/errors.log
-            status=$(echo $?)
-		fi
-	done < $execdir/$base
+        sudo pacman -S "$line" --noconfirm >/dev/null 2>>/$execdir/errors.log
+        status=$(echo $?)
+	done 
     if [ "$status" == 0 ]; then
         echo -ne "\r${GREEN}[*]${RESET} Installing packages using pacman ${GREEN}[Done]$RESET{}"
         echo "0" >> $execdir/exitstatus.txt
@@ -48,20 +67,18 @@ install_packages_dir() {
 }
 
 
-install_packages_aur() {
+aur_install() {
     echo ""
     echo -ne "\r${RED}[ ]${RESET} Installing packages from AUR ..." 
-	while read line;
+	for line in "${aur[@]}";
 	do
-        if [ "${line:0:1}" != "#" ] && [ "${#line}" != 0 ]; then
-            cd $HOME 
-            git clone https://aur.archlinux.org/"$line".git >/dev/null 2>>/$execdir/errors.log
-            cd $HOME/$line >/dev/null 2>>/$execdir/errors.log
-            makepkg -si --noconfirm >/dev/null 2>>/$execdir/errors.log
-            status=$(echo $?)
-            rm $HOME/$line -rf >/dev/null 2>>/$execdir/errors.log
-        fi
-	done < $execdir/$aur
+        cd $HOME 
+        git clone https://aur.archlinux.org/"$line".git >/dev/null 2>>/$execdir/errors.log
+        cd $HOME/$line >/dev/null 2>>/$execdir/errors.log
+        makepkg -si --noconfirm >/dev/null 2>>/$execdir/errors.log
+        status=$(echo $?)
+        rm $HOME/$line -rf >/dev/null 2>>/$execdir/errors.log
+	done 
     if [ "$status" == 0 ]; then
         echo -ne "\r${GREEN}[*]${RESET} Installing packages from AUR ${GREEN}[Done]${RESET}"
         echo "0" >> $execdir/exitstatus.txt
@@ -76,15 +93,13 @@ install_packages_aur() {
 gitrepos_download() {
     echo ""
     echo -ne "\r${RED}[ ]${RESET} Downloading git Repos ..." 
-	while read line;
+	for line in "${gitrepos[@]}";
 	do
-        if [ "${line:0:1}" != "#" ] && [ "${#line}" != 0 ]; then
-            cd $HOME 
-            repo=`echo $line | cut -d '|' -f1`
-            git clone "$repo" >/dev/null 2>>/$execdir/errors.log
-            status=$(echo $?)
-        fi
-	done < $execdir/$gitrepos
+        cd $HOME 
+        repo=`echo $line | cut -d '|' -f1`
+        git clone "$repo" >/dev/null 2>>/$execdir/errors.log
+        status=$(echo $?)
+	done
     if [ "$status" == 0 ]; then
         echo -ne "\r${GREEN}[*]${RESET} Downloading git repos ${GREEN}[Done]${RESET}"
         echo "0" >> $execdir/exitstatus.txt
@@ -97,9 +112,11 @@ gitrepos_download() {
 install_dotfiles() {
     echo ""
     echo -ne "\r${RED}[ ]${RESET} Installing Dotfiles ..." 
-    if [ -d $HOME/.dotfiles ]; then 
+    if [ ! -d $HOME/.dotfiles ]; then 
         status=1
     else
+        if [ -f $HOME/.bashrc ]; then rm $HOME/.bashrc; fi
+        if [ -f $HOME/.profile ]; then rm $HOME/.profile; fi
         ls -Al $HOME/.dotfiles | awk '{print $9}' | while read line;
         do
             if [ "$line" != .config ] && [ "$line" != .git ] && [ ${#line} != 0 ] && [ ! -L "$HOME/$line" ]; then 
@@ -160,17 +177,15 @@ start_qn() {
 }
 
 filenfolders() {
-    if [ -f $HOME/.bashrc ]; then rm $HOME/.bashrc; fi
-    if [ -f $HOME/.bash_profile ]; then rm $HOME/.bash_profile; fi
     if [ -f "$execdir/exitstatus.txt" ]; then rm $execdir/exitstatus.txt; fi
     if [ -f "$execdir/errors.log" ]; then rm $execdir/errors.log; fi
 	if [ ! -d "$HOME/.config" ]; then mkdir $HOME/.config; fi
-	if [ ! -f "$execdir/$base" ] || [ ! -f "$execdir/$gitrepos" ] || [ ! -f "$execdir/$aur" ];  then
-		echo -e "${RED}\nERROR : Required file/files [base,aur,gitrepos] not found. Stopping script.${RESET}"
+	if [ ! -f "$config" ];  then
+		echo -e "${RED}\nERROR : Required file \'config\' not found. Stopping script.${RESET}"
 		sep "="
 		exit 1
 	else
-		echo -e "${GREEN}Required files [base,aur,gitrepos] OK.${RESET}"
+		echo -e "${GREEN}Required files satisfied.${RESET}"
 	fi
 }
 
@@ -182,6 +197,7 @@ init() {
     network
 	is_root
 	filenfolders 
+    source_stuff
 }
 
 #[[## conclusion ##]]#
@@ -203,14 +219,20 @@ conclusion() {
 
 #[[## EXTRA SETUP ##]]#
 
-setup_home() {
-	cd $HOME
-	mkdir Documents Pictures Files Music Videos Downloads 
-	mkdir $HOME/Pictures/Screenshots 
-	mv $HOME/Wallpapers $HOME/Pictures/ 
-	mv $HOME/Suckless-builds/ $HOME/Files/ 
-	mv $HOME/Books $HOME/Files/
-	mv $HOME/PIS/ $HOME/Files/ 
+setup_home_folders() {
+    for line in "${homedir[@]}";
+    do
+        mkdir $line
+    done
+}
+
+setup_git_folders() {
+    for line in "${gitrepos[@]}";
+    do
+        name=`echo $line | cut -d '|' -f2`
+        path=`echo $line | cut -d '|' -f3`
+        mv $HOME/$name $path
+    done
 }
 
 build_suckless(){
@@ -225,11 +247,13 @@ build_suckless(){
 extra_setup() {
     echo ""
     echo -ne "\r${RED}[ ]${RESET} Additional Setup ..." 
-	setup_home >/dev/null 2>>/$execdir/errors.log
+	setup_home_folders >/dev/null 2>>/$execdir/errors.log
     status_0=$(echo $?)
-	build_suckless >/dev/null 2>>/$execdir/errors.log
+    setup_git_folders 2>>/$execdir/errors.log
     status_1=$(echo $?)
-    if [ "$status_0" == 0 ] && [ "$status_1" == 0 ]; then
+	build_suckless >/dev/null 2>>/$execdir/errors.log
+    status_2=$(echo $?)
+    if [ "$status_0" == 0 ] && [ "$status_1" == 0 ] && [ "$status_2" == 0 ]; then
         echo -ne "\r${GREEN}[*]${RESET} Additional Setup ... ${GREEN}[Done]${RESET}"
         echo "0" >> $execdir/exitstatus.txt
     else
@@ -242,13 +266,15 @@ extra_setup() {
 ### MAIN-FUNCTION ###
 
 main() {
+
 	init 
-	install_packages_dir 
-	install_packages_aur
+    pacman_install
+    aur_install
 	gitrepos_download
 	install_dotfiles
 	extra_setup
 	conclusion
+
 }
 
 ###----------------------------------------------------------
