@@ -22,8 +22,6 @@ pulseaudio-alsa
 pavucontrol
 arandr
 vim
-zathura
-zathura-pdf-mupdf
 acpi
 flameshot
 unzip
@@ -99,7 +97,6 @@ powerline-common
 brave-bin
 freedownloadmanager
 go-for-it-git
-musikcube-bin
 
 ### FONTS ###
 
@@ -125,6 +122,8 @@ https://codeberg.org/srykrnm/.dotfiles|Dotfiles|$HOME/
 https://codeberg.org/srykrnm/Suckless-builds|Suckless-builds|$HOME/Files/
 https://codeberg.org/srykrnm/Dmenu-scripts|Shell-scripts|$HOME/
 
+#-----------------------
+
 [ HOME-DIR ]
 
 $HOME/Documents
@@ -137,3 +136,4 @@ $HOME/Pictures/Screenshots
 $HOME/Videos/Courses
 $HOME/Files/Torrents
 
+#-----------------------
