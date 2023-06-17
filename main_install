@@ -11,18 +11,14 @@ LOCALE="en_US.UTF-8 UTF-8" # cat /etc/locale.gen
 
 ### FUNCTIONS ###
 
-root_qn() {
-   
+init () {
+ 
     # Checking for root previlages.
 
     if [[ $EUID -ne 0 ]]; then
         echo "This script must be run as root."
         exit 1
     fi
-
-}
-
-init () {
 
     # Check whether UEFI / LEGACY is supported
 
@@ -40,13 +36,22 @@ init () {
 
 disk_partition() {
 
-    # UEFI partitioning
+    # GENERAL 
+
+    umount -A --recursive /mnt
+    sgdisk --zap-all /dev/sda # zap all on disk
+
+
+b    # UEFI partitioning
     
     if [ "$MODE" = "UEFI" ]; then
-        sgdisk --zap-all /dev/sda # zap all on disk
-        printf "g\nn\n\n1\n\n+512M\nt\n1\n1\nn\n\n\n8300\nn\n\n\n\nw\n" | fdisk /dev/sda
-        mkfs.fat -F32 /dev/sda1
-        mkswap /dev/sda2
+	sgdisk -a 2048 -o /dev/sda
+	sgdisk -n 1::+512M --typecode=1:ef00 --change-name=1:'EFIBOOT' /dev/sda
+	sgdisk -n 2::+${SWAP_SIZE}G --typecode=2:8200 --change-name=2:'SWAP' /dev/sda 
+	sgdisk -n 3::-0 --typecode=3:8300 --change-name=3:'ROOT' /dev/sda 
+	partprobe /dev/sda
+	mkfs.fat -F32 /dev/sda1 
+	mkswap /dev/sda2
         mkfs.ext4 /dev/sda3
         swapon /dev/sda2
         mount /dev/sda3 /mnt
@@ -55,7 +60,6 @@ disk_partition() {
     # BIOS partitioning
     
     if [ "$MODE" = "BIOS" ]; then
-        sgdisk --zap-all /dev/sda # zap all on disk
         printf "o\nn\np\n1\n\n+${SWAP_SIZE}G\nt\n82\nn\np\n2\n\n\nw\n" | fdisk /dev/sda
         mkswap /dev/sda1
         swapon /dev/sda1
@@ -92,6 +96,8 @@ user_settings() {
     # Setting hostname and root passwd
     read -p "Enter the desired hostname: " HOST_NAME
     read -s -p "Enter the desired root password: " ROOT_PASSWORD
+    echo $HOST_NAME > /etc/hostname
+    echo -e "$USER_PASSWORD\n$USER_PASSWORD" | passwd 
 
     #Setting additional user , group and their passwd
     read -p "Enter the username for User: " USER_NAME
@@ -123,7 +129,23 @@ conclusion() {
     pacman -S networkmanager
     systemctl enable NetworkManager
     umount -l /mnt
-    sleep 20
-    reboot
+    echo "INSTALLATION DONE"
 }
 
+main() {
+
+	init
+	disk_partition
+#	the_main_stuff
+#	user_settings
+#	bootloader_setup
+#	conclusion
+
+}
+
+
+### MAIN ###
+
+main
+
+### END ###
