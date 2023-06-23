@@ -8,17 +8,22 @@ SWAP_SIZE=$((RAM_SIZE / 2))
 CONTINENT="Asia" # ls /usr/share/zoneinfo/ -> for more details
 TIMEZONE="Kolkata" # ls /usr/share/zoneinfo/$CONTINENT/ -> for more details
 LOCALE="en_US.UTF-8 UTF-8" # cat /etc/locale.gen
+DISK="/dev/sda"
 
 ### FUNCTIONS ###
 
-init () {
- 
+root_qn() {
+   
     # Checking for root previlages.
 
     if [[ $EUID -ne 0 ]]; then
         echo "This script must be run as root."
         exit 1
     fi
+
+}
+
+init () {
 
     # Check whether UEFI / LEGACY is supported
 
@@ -36,35 +41,27 @@ init () {
 
 disk_partition() {
 
-    # GENERAL 
-
-    umount -A --recursive /mnt
-    sgdisk --zap-all /dev/sda # zap all on disk
-
-
-b    # UEFI partitioning
+    # UEFI partitioning
     
     if [ "$MODE" = "UEFI" ]; then
-	sgdisk -a 2048 -o /dev/sda
-	sgdisk -n 1::+512M --typecode=1:ef00 --change-name=1:'EFIBOOT' /dev/sda
-	sgdisk -n 2::+${SWAP_SIZE}G --typecode=2:8200 --change-name=2:'SWAP' /dev/sda 
-	sgdisk -n 3::-0 --typecode=3:8300 --change-name=3:'ROOT' /dev/sda 
-	partprobe /dev/sda
-	mkfs.fat -F32 /dev/sda1 
-	mkswap /dev/sda2
-        mkfs.ext4 /dev/sda3
-        swapon /dev/sda2
-        mount /dev/sda3 /mnt
+        sgdisk --zap-all ${DISK} # zap all on disk
+        printf "g\nn\n\n1\n\n+512M\nt\n1\n1\nn\n\n\n8300\nn\n\n\n\nw\n" | fdisk ${DISK}
+        mkfs.fat -F32 ${DISK}1
+        mkswap ${DISK}2
+        mkfs.ext4 ${DISK}3
+        swapon ${DISK}2
+        mount ${DISK}3 /mnt
     fi
 
     # BIOS partitioning
     
     if [ "$MODE" = "BIOS" ]; then
-        printf "o\nn\np\n1\n\n+${SWAP_SIZE}G\nt\n82\nn\np\n2\n\n\nw\n" | fdisk /dev/sda
-        mkswap /dev/sda1
-        swapon /dev/sda1
-        mkfs.ext4 /dev/sda2
-        mount /dev/sda2 /mnt
+        sgdisk --zap-all ${DISK} # zap all on disk
+        printf "o\nn\np\n1\n\n+${SWAP_SIZE}G\nt\n82\nn\np\n2\n\n\nw\n" | fdisk ${DISK}
+        mkswap ${DISK}1
+        swapon ${DISK}1
+        mkfs.ext4 ${DISK}2
+        mount ${DISK}2 /mnt
     fi
 
 
@@ -96,8 +93,6 @@ user_settings() {
     # Setting hostname and root passwd
     read -p "Enter the desired hostname: " HOST_NAME
     read -s -p "Enter the desired root password: " ROOT_PASSWORD
-    echo $HOST_NAME > /etc/hostname
-    echo -e "$USER_PASSWORD\n$USER_PASSWORD" | passwd 
 
     #Setting additional user , group and their passwd
     read -p "Enter the username for User: " USER_NAME
@@ -115,11 +110,11 @@ bootloader_setup() {
     # Installing grub according to $MODE and generating grub config.
     if [ "$MODE" = "UEFI" ]; then
         mkdir /boot/EFI
-        mount /dev/sda1 /boot/EFI
+        mount ${DISK}1 /boot/EFI
         pacman -S efibootmgr dosfstools mtools os-prober
         grub-install --target=x86_64-efi --bootloader-id=$BOOTLOADER_ID --recheck
     else
-        grub-install /dev/sda
+        grub-install ${DISK}
     fi
     grub-mkconfig -o /boot/grub/grub.cfg
 
@@ -129,23 +124,7 @@ conclusion() {
     pacman -S networkmanager
     systemctl enable NetworkManager
     umount -l /mnt
-    echo "INSTALLATION DONE"
+    sleep 20
+    reboot
 }
 
-main() {
-
-	init
-	disk_partition
-#	the_main_stuff
-#	user_settings
-#	bootloader_setup
-#	conclusion
-
-}
-
-
-### MAIN ###
-
-main
-
-### END ###
